@@ -6,21 +6,12 @@ app.use(cors());
 app.use(json());
 
 const participants = [];
-const messages = [{
-    to: "Maria",
-    text: "oi sumida rs",
-    type: "private_message"
-},
-{
-    to: "Todos",
-    text: "olá",
-    type: "message"
-}];
+const messages = [];
 
 app.post('/participants', (req, res) => {
     const {name} = req.body;
     participants.push(name);
-    res.send(name); 
+    res.status(201); 
 });
 
 app.get('/participants', (req, res) => {
@@ -28,7 +19,14 @@ app.get('/participants', (req, res) => {
 });
 
 app.post('/messages', (req, res) => {
-    res.send(messages);
+    const {to, text, type} = req.body;
+    const message = {
+        to: to, 
+        text: text, 
+        type: type
+    };
+    messages.push(message);
+    res.status(201);
 });
 
 app.get('/messages', (req, res) => {
