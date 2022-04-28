@@ -67,8 +67,16 @@ app.get('/messages', async (req, res) => {
     }
 });
 
-app.post('/status', (req, res) => {
-    res.send('Status');
+app.post('/status', async (req, res) => {
+    const {user} = req.headers;
+    const validate = await db.collection('participants').find({name: user}).toArray();
+    if (validate.length === 0) {
+        res.sendStatus(404);
+    }
+    else {
+        validate[0].lastStatus = Date.now();
+        res.sendStatus(200);
+    }
 });
 
 app.listen(5000, () => {
