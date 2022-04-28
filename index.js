@@ -1,5 +1,6 @@
 import express, {json} from 'express';
 import {MongoClient} from 'mongodb';
+import dayjs from 'dayjs';
 import dotenv from 'dotenv';
 import chalk from 'chalk';
 import cors from 'cors';
@@ -11,49 +12,59 @@ dotenv.config();
 
 let db = null;
 const mongoClient = new MongoClient(process.env.MONGO_URI);
-
-const messages = [];
+const promise = mongoClient.connect();
+promise.then(() => {
+    db = mongoClient.db('batepapo');
+    console.log(chalk.blue.bold('Banco de dados conectado!'));
+}).catch(e => {
+    console.log(chalk.red.bold('Erro ao conectar banco de dados'));
+});
 
 app.post('/participants', async (req, res) => {
     const {name} = req.body;
     try {
-        const promise = await mongoClient.connect();
-        db = mongoClient.db('batepapo');
-        const participant = await db.collection('participants').insertOne({name: name, lastStatus: Date.now()});
+        await db.collection('participants').insertOne({name: name, lastStatus: Date.now()});
         res.sendStatus(201); 
-        mongoClient.close();
     } catch(e) {
-        res.sendStatus(422);
-        mongoClient.close();
+        res.status(422).send('Não foi possível realizar o cadastro');
     }
 });
 
 app.get('/participants', async (req, res) => {
     try {
-        const promise = await mongoClient.connect();
-        db = mongoClient.db('batepapo');
         const participants = await db.collection('participants').find({}).toArray();
         res.send(participants);
-        mongoClient.close();
     } catch(e) {
-        res.status(500).send(e);
-        mongoClient.close();
+        res.status(500).send('Erro ao obter participantes');
     }
 });
 
-app.post('/messages', (req, res) => {
+app.post('/messages', async (req, res) => {
     const {to, text, type} = req.body;
+    const {user} = req.headers;
+    const time = dayjs(Date.now()).format('HH:mm:ss');
     const message = {
+        from: user,
         to: to, 
         text: text, 
-        type: type
+        type: type,
+        time: time
     };
-    messages.push(message);
-    res.sendStatus(201);
+    try {
+        await db.collection('messages').insertOne(message);
+        res.sendStatus(201);
+    } catch(e) {
+        res.status(422).send('Não foi possível enviar a mensagem');
+    }
 });
 
-app.get('/messages', (req, res) => {
-    res.send(messages);
+app.get('/messages', async (req, res) => {
+    try {
+        const messages = await db.collection('messages').find({}).toArray();
+        res.send(messages);
+    } catch(e) {
+        res.status(500).send('Erro ao obter mensagens');
+    }
 });
 
 app.post('/status', (req, res) => {
