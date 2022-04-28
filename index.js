@@ -1,17 +1,35 @@
 import express, {json} from 'express';
+import {MongoClient} from 'mongodb';
+import dotenv from 'dotenv';
+import chalk from 'chalk';
 import cors from 'cors';
 
 const app = express();
 app.use(cors());
 app.use(json());
+dotenv.config();
+
+let db = null;
+const mongoClient = new MongoClient(process.env.MONGO_URI);
+const promise = mongoClient.connect();
+promise.then(() => {
+    db = mongoClient.db('batepapo');
+    console.log(chalk.blue.bold('Banco de dados conectado'));
+});
 
 const participants = [];
 const messages = [];
 
-app.post('/participants', (req, res) => {
+app.post('/participants', async (req, res) => {
     const {name} = req.body;
-    participants.push(name);
-    res.status(201); 
+    try {
+        const participant = await db.collection('participants').insertOne({name: name, lastStatus: Date.now()});
+        res.sendStatus(201); 
+        mongoClient.close();
+    } catch(e) {
+        res.sendStatus(422);
+        mongoClient.close();
+    }
 });
 
 app.get('/participants', (req, res) => {
@@ -26,7 +44,7 @@ app.post('/messages', (req, res) => {
         type: type
     };
     messages.push(message);
-    res.status(201);
+    res.sendStatus(201);
 });
 
 app.get('/messages', (req, res) => {
@@ -38,5 +56,5 @@ app.post('/status', (req, res) => {
 });
 
 app.listen(5000, () => {
-    console.log('No ar');
+    console.log(chalk.green.bold('Servidor no ar'));
 });
