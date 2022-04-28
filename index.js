@@ -22,8 +22,22 @@ promise.then(() => {
 
 app.post('/participants', async (req, res) => {
     const {name} = req.body;
+    const period = Date.now();
+    const time = dayjs(period).format('HH:mm:ss');
+    const participant = {
+        name: name, 
+        lastStatus: period
+    };
+    const message = {
+        from: name,
+        to: 'Todos',
+        text: 'entra na sala...', 
+        type: 'status',
+        time: time
+    };
     try {
-        await db.collection('participants').insertOne({name: name, lastStatus: Date.now()});
+        await db.collection('participants').insertOne(participant);
+        await db.collection('messages').insertOne(message);
         res.sendStatus(201); 
     } catch(e) {
         res.status(422).send('Não foi possível realizar o cadastro');
