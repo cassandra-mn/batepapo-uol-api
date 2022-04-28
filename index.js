@@ -11,18 +11,14 @@ dotenv.config();
 
 let db = null;
 const mongoClient = new MongoClient(process.env.MONGO_URI);
-const promise = mongoClient.connect();
-promise.then(() => {
-    db = mongoClient.db('batepapo');
-    console.log(chalk.blue.bold('Banco de dados conectado'));
-});
 
-const participants = [];
 const messages = [];
 
 app.post('/participants', async (req, res) => {
     const {name} = req.body;
     try {
+        const promise = await mongoClient.connect();
+        db = mongoClient.db('batepapo');
         const participant = await db.collection('participants').insertOne({name: name, lastStatus: Date.now()});
         res.sendStatus(201); 
         mongoClient.close();
@@ -32,8 +28,17 @@ app.post('/participants', async (req, res) => {
     }
 });
 
-app.get('/participants', (req, res) => {
-    res.send(participants);
+app.get('/participants', async (req, res) => {
+    try {
+        const promise = await mongoClient.connect();
+        db = mongoClient.db('batepapo');
+        const participants = await db.collection('participants').find({}).toArray();
+        res.send(participants);
+        mongoClient.close();
+    } catch(e) {
+        res.status(500).send(e);
+        mongoClient.close();
+    }
 });
 
 app.post('/messages', (req, res) => {
