@@ -20,6 +20,25 @@ promise.then(() => {
     console.log(chalk.red.bold('Erro ao conectar banco de dados'));
 });
 
+setInterval(async () => {
+    const participants = await db.collection('participants').find({}).toArray();
+    const time = Date.now();
+    const validate = participants.find(participant => {
+        if (time - participant.lastStatus > 10000) return participant;
+    });
+    if (validate !== undefined) {
+        const message = {
+            from: validate.name,
+            to: 'Todos',
+            text: 'sai da sala...', 
+            type: 'status',
+            time: dayjs(time).format('HH:mm:ss')
+        };
+        await db.collection('participants').deleteOne(validate);
+        await db.collection('messages').insertOne(message);
+    }
+}, 15000);
+
 app.post('/participants', async (req, res) => {
     const {name} = req.body;
     const period = Date.now();
@@ -88,7 +107,6 @@ app.post('/status', async (req, res) => {
         res.sendStatus(404);
     }
     else {
-        validate[0].lastStatus = Date.now();
         res.sendStatus(200);
     }
 });
