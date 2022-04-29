@@ -92,9 +92,15 @@ app.post('/messages', async (req, res) => {
 });
 
 app.get('/messages', async (req, res) => {
+    const {limit} = req.query;
     try {
         const messages = await db.collection('messages').find({}).toArray();
-        res.send(messages);
+        if (!limit) {
+            res.send(messages);
+        } else {
+            const messagesLimited = messages.reverse().splice(0,limit);
+            res.send(messagesLimited.reverse());
+        }
     } catch(e) {
         res.status(500).send('Erro ao obter mensagens');
     }
