@@ -102,13 +102,13 @@ app.get('/messages', async (req, res) => {
 
 app.post('/status', async (req, res) => {
     const {user} = req.headers;
-    const validate = await db.collection('participants').find({name: user}).toArray();
-    if (validate.length === 0) {
+    const participant = await db.collection('participants').findOne({name: user});
+    if (!participant) {
         res.sendStatus(404);
-    }
-    else {
-        res.sendStatus(200);
-    }
+        return;
+    }   
+    await db.collection('participants').updateOne({name: user}, {$set: {"lastStatus": Date.now()}});
+    res.sendStatus(200);
 });
 
 app.listen(5000, () => {
