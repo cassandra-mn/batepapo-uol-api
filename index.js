@@ -1,5 +1,5 @@
 import express, {json} from 'express';
-import {MongoClient} from 'mongodb';
+import {MongoClient, ObjectId} from 'mongodb';
 import dotenv from 'dotenv';
 import chalk from 'chalk';
 import dayjs from 'dayjs';
@@ -143,6 +143,29 @@ app.get('/messages', async (req, res) => {
         }
     } catch(e) {
         res.status(500).send('Erro ao obter mensagens');
+    }
+});
+
+app.delete('/messages/:id', async (req, res) => {
+    const {user} = req.headers;
+    const {id} = req.params;
+    const message = await db.collection('messages').find({_id: new ObjectId(id)}).toArray();
+
+    if (!message) {
+        res.sendStatus(404);
+        return;
+    }
+
+    if (message[0].from !== user) {
+        res.sendStatus(401);
+        return;
+    }
+
+    try {
+        await db.collection('messages').deleteOne({_id: new ObjectId(id)});
+        res.sendStatus(200);
+    } catch(e) {
+        res.status(500).send(error);
     }
 });
 
