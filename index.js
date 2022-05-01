@@ -22,10 +22,6 @@ promise.catch(e => {
     console.log(chalk.red.bold('Erro ao conectar banco de dados'));
 });
 
-const userSchema = joi.object({
-    name: joi.string().required()
-});
-
 setInterval(async () => {
     const participants = await db.collection('participants').find({}).toArray();
     const time = Date.now();
@@ -48,8 +44,10 @@ setInterval(async () => {
 app.post('/participants', async (req, res) => {
     const {name} = req.body;
     const period = Date.now();
-    const time = dayjs(period).format('HH:mm:ss');
-    const validation = userSchema.validate({name});
+    const time = dayjs(period).format('HH:mm:ss'); 
+    const userSchema = joi.object({
+        name: joi.string().min(3).required()
+    });
     const participant = {
         name: name, 
         lastStatus: period
@@ -61,6 +59,7 @@ app.post('/participants', async (req, res) => {
         type: 'status',
         time: time
     };
+    const validation = userSchema.validate({name});
     const participants = await db.collection('participants').find({}).toArray();
     const isEqual = participants.some(participant => participant.name === name);
     
@@ -93,9 +92,16 @@ app.get('/participants', async (req, res) => {
 });
 
 app.post('/messages', async (req, res) => {
-    const {to, text, type} = req.body;
     const {user} = req.headers;
+    const {to, text, type} = req.body;
     const time = dayjs(Date.now()).format('HH:mm:ss');
+    const messageSchema = joi.object({
+        from: joi.string(),
+        to: joi.string().required(),
+        text: joi.string().min(2).required(),
+        type: joi.string().valid('message', 'private_message'),
+        time: joi.string()
+    });
     const message = {
         from: user,
         to: to, 
@@ -103,6 +109,19 @@ app.post('/messages', async (req, res) => {
         type: type,
         time: time
     };
+    const participant = await db.collection('participants').findOne({name: user});
+    const validation = messageSchema.validate(message);
+
+    if (validation.error) {
+        res.status(422).send(validation.error.details[0].message);
+        return;
+    }
+
+    if (!participant) {
+        res.status(422).send('Faça login novamente');
+        return;
+    } 
+
     try {
         await db.collection('messages').insertOne(message);
         res.sendStatus(201);
