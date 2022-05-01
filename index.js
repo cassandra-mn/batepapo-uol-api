@@ -1,9 +1,10 @@
 import express, {json} from 'express';
 import {MongoClient} from 'mongodb';
-import dayjs from 'dayjs';
 import dotenv from 'dotenv';
 import chalk from 'chalk';
+import dayjs from 'dayjs';
 import cors from 'cors';
+import joi from 'joi';
 
 const app = express();
 app.use(cors());
@@ -16,8 +17,13 @@ const promise = mongoClient.connect();
 promise.then(() => {
     db = mongoClient.db('batepapo');
     console.log(chalk.blue.bold('Banco de dados conectado!'));
-}).catch(e => {
+});
+promise.catch(e => {
     console.log(chalk.red.bold('Erro ao conectar banco de dados'));
+});
+
+const userSchema = joi.object({
+    name: joi.string().required()
 });
 
 setInterval(async () => {
@@ -43,6 +49,7 @@ app.post('/participants', async (req, res) => {
     const {name} = req.body;
     const period = Date.now();
     const time = dayjs(period).format('HH:mm:ss');
+    const validation = userSchema.validate({name});
     const participant = {
         name: name, 
         lastStatus: period
@@ -54,6 +61,19 @@ app.post('/participants', async (req, res) => {
         type: 'status',
         time: time
     };
+    const participants = await db.collection('participants').find({}).toArray();
+    const isEqual = participants.some(participant => participant.name === name);
+    
+    if (validation.error) {
+        res.status(422).send(validation.error.details[0].message);
+        return;
+    }
+
+    if (isEqual) {
+        res.status(409).send('Usuário já cadastrado');
+        return;
+    }
+    
     try {
         await db.collection('participants').insertOne(participant);
         await db.collection('messages').insertOne(message);
